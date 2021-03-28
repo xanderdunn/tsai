@@ -109,6 +109,29 @@ TSBERT_Loss = MVP_Loss
 # Cell
 import matplotlib.colors as mcolors
 
+from threading import Thread
+from queue import Queue
+
+class BackgroundGenerator(Thread):
+    def __init__(self, generator):
+        threading.Thread.__init__(self)
+        self.queue = Queue(30)
+        self.generator = generator
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        for item in self.generator:
+            self.queue.put(item)
+        self.queue.put(None)
+
+    def next(self):
+            next_item = self.queue.get()
+            if next_item is None:
+                 raise StopIteration
+            return next_item
+
+from typing import Dict
 
 class MVP(Callback):
     order = 60
@@ -149,6 +172,7 @@ class MVP(Callback):
             self.path_text = f"pretrained model_path='{self.PATH}_model.pth'; weights_path='{self.PATH}.pth'"
         else:
             self.path_text = f"pretrained weights_path='{self.PATH}.pth'"
+        self.mask_queues: Dict[Int, BackgroundGenerator] = {}
 
 
     def before_fit(self):
@@ -174,11 +198,26 @@ class MVP(Callback):
                                               nn.Conv1d(self.learn.model.head_nf, self.learn.dls.vars, 1)).to(self.learn.dls.device)
 
     def before_batch(self):
-        self.learn.yb = (self.x,)
-        mask = create_mask(self.x,  r=self.r, lm=self.lm, stateful=self.stateful, sync=self.sync, subsequence_mask=self.subsequence_mask,
-                           variable_mask=self.variable_mask, future_mask=self.future_mask, custom_mask=self.custom_mask)
-        self.learn.xb = (self.x * mask,)
-        self.learn.loss_func.mask = (mask == 0)  # boolean mask
+        batch_size = self.x.shape[0]
+        def mask_generator(): # Prefetch masks in the background
+            while True:
+                yield create_mask(self.x,
+                                  r=self.r,
+                                  lm=self.lm,
+                                  stateful=self.stateful,
+                                  sync=self.sync,
+                                  subsequence_mask=self.subsequence_mask,
+                                  variable_mask=self.variable_mask,
+                                  future_mask=self.future_mask,
+                                  custom_mask=self.custom_mask)
+
+        if not batch_size in self.mask_queues:
+            self.mask_queues[batch_size] = BackgroundGenerator(mask_generator())
+        self.learn.yb = (self.x,) # type: ignore
+        mask = self.mask_queues[batch_size].next()
+        self.learn.xb = (self.x * mask,) # type: ignore
+        # boolean mask
+        self.learn.loss_func.mask = (mask == 0) # type: ignore
         self.mask = mask
 
     def after_epoch(self):
