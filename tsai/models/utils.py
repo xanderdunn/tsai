@@ -89,7 +89,7 @@ def transfer_weights(model, weights_path:Path, device:torch.device=None, exclude
 
     device = ifnone(device, default_device())
     state_dict = model.state_dict()
-    new_state_dict = torch.load(weights_path, map_location=device)
+    new_state_dict = torch.load(weights_path, map_location=device)["model_state_dict"]
     matched_layers = 0
     unmatched_layers = []
     for name, param in state_dict.items():
