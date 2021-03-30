@@ -49,6 +49,10 @@ class TSMetaDataset():
             start += length
         return idx_pairs
 
+    @property
+    def vars(self):
+        return self.datasets[0].vars
+
 
 class TSMetaDatasets(FilteredBase):
     def __init__(self, metadataset, splits):
