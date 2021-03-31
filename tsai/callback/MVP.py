@@ -264,13 +264,6 @@ class MVP(Callback):
             elif self.epoch == self.n_epoch - 1:
                 if self.rank == 0 or self.rank is None:
                     print(f"\nepochs: {self.n_epoch} best epoch: {self.best_epoch:3}  val_loss: {self.best:8.6f} - {self.path_text}\n")
-        elif self.epoch == self.n_epoch - 1:
-            if self.save_model:
-                if self.rank == 0 or self.rank is None:
-                    torch.save(self.learn.model, f'{self.PATH}_model.pth')
-            if self.rank == 0 or self.rank is None:
-                torch.save(self.learn.model.state_dict(), f'{self.PATH}.pth')
-                print(f"\nepoch: {self.epoch:3}  val_loss: {val:8.6f} - {self.path_text}\n")
 
     def after_fit(self):
         self.run = True
