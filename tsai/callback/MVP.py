@@ -259,6 +259,7 @@ class MVP(Callback):
                                     "model_state_dict": self.learn.model.state_dict(),
                                     "optimizer_state_dict": self.learn.opt.state_dict()}
                     torch.save(dict_to_save, checkpoint_path)
+                    time.sleep(1) # Prevent a hang when starting the second epoch, I don't know the cause of it
                     pv(f"best epoch: {self.best_epoch:3}  val_loss: {self.best:8.6f} - {self.path_text}", self.verbose or (self.epoch == self.n_epoch - 1))
             elif self.epoch == self.n_epoch - 1:
                 if self.rank == 0 or self.rank is None:
