@@ -517,6 +517,10 @@ class NumpyDataLoaders(DataLoaders):
         kwargs = [{k: v[i] for k,v in kwargs.items()} for i in range_of(ds)]
         if not is_listy(bs): bs = [bs]
         if len(bs) != len(ds): bs = bs * len(ds)
+        print("The validation DataLoader is being set to shuffle=True.")
+        # I want to shuffle the validation set as a debug measure. The val loss shouldn't change based on shuffling
+        # or the order in which the samples are presented or the way they are batched.
+        kwargs[1]["shuffle"] = True
         loaders = [cls._dl_type(d, bs=b, num_workers=num_workers, batch_tfms=batch_tfms, **k) for d,k,b in zip(ds, kwargs, bs)]
         return cls(*loaders, path=path, device=device)
 
