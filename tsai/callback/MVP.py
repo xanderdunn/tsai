@@ -220,8 +220,11 @@ class MVP(Callback):
         else:
             model = self.learn.model
         assert hasattr(model, "head"), "model must have a head attribute to be trained with MVP"
-        model.head = nn.Sequential(nn.Dropout(self.dropout),
-                                              nn.Conv1d(model.head_nf, self.learn.dls.vars, 1)).to(self.learn.dls.device)
+        if not hasattr(model, "head_initialized") or not model.head_initialized:
+            print("Initializing the MVP model head...")
+            model.head = nn.Sequential(nn.Dropout(self.dropout),
+                                       nn.Conv1d(model.head_nf, self.learn.dls.vars, 1)).to(self.learn.dls.device)
+            model.head_initialized = True
 
     def before_batch(self):
         batch_size = self.x.shape[0]
