@@ -255,9 +255,9 @@ class MVP(Callback):
                     checkpoint_path = f'{self.PATH}_{self.epoch}.tar'
                     print(f"Saving checkpoint to {checkpoint_path}...")
                     dict_to_save = {"val_loss": val,
-                                    "epoch": self.n_epoch,
+                                    "epoch": self.epoch,
                                     "model_state_dict": self.learn.model.state_dict(),
-                                    "optimizer_state_dict": self.learn.optimizer.state_dict()}
+                                    "optimizer_state_dict": self.learn.opt.state_dict()}
                     torch.save(dict_to_save, checkpoint_path)
                     pv(f"best epoch: {self.best_epoch:3}  val_loss: {self.best:8.6f} - {self.path_text}", self.verbose or (self.epoch == self.n_epoch - 1))
             elif self.epoch == self.n_epoch - 1:
