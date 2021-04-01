@@ -166,7 +166,7 @@ class MVP(Callback):
 
     def __init__(self, r: float = .15, subsequence_mask: bool = True, lm: float = 3., stateful: bool = True, sync: bool = False, variable_mask: bool = False,
                  future_mask: bool = False, custom_mask: Optional = None, dropout: float = .1, crit: callable = None,
-                 target_dir: str = './data/MVP', fname: str = 'model', save_best: bool = True, save_model: bool = True, verbose: bool = False, rank:Optional[int]=None):
+                 target_dir:Optional[str] = './data/MVP', fname: str = 'model', save_best: bool = True, save_model: bool = True, verbose: bool = False, rank:Optional[int]=None):
         r"""
         Callback used to perform the pretext task of reconstruct the original data after a binary mask has been applied.
 
