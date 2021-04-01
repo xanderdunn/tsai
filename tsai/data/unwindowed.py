@@ -52,7 +52,7 @@ class TSUnwindowedDataset():
         if self.y is None:
             return (self._types[0](xb),)
         else:
-            yb = self.y[widxs]
+            yb = self.y[idxs] # FIXME: This used to be widxs, which one depends on how the y dataset is formatted
             if self.y_func is not None:
                 yb = self.y_func(yb)
             return (self._types[0](xb), self._types[1](yb))
