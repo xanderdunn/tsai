@@ -125,6 +125,7 @@ from queue import Queue
 class BackgroundGenerator(Thread):
     def __init__(self, generator, max_prefetch:int=1):
         threading.Thread.__init__(self)
+        self.max_prefetch = max_prefetch
         self.queue = Queue(max_prefetch)
         self.generator = generator
         self.daemon = True
@@ -140,6 +141,10 @@ class BackgroundGenerator(Thread):
         if next_item is None:
             raise StopIteration
         return next_item
+
+    def wait_until_full(self):
+        while self.queue.qsize() < self.max_prefetch:
+            time.sleep(1)
 
 from typing import Dict
 
@@ -240,7 +245,10 @@ class MVP(Callback):
                                                                               self.variable_mask,
                                                                               self.future_mask,
                                                                               self.custom_mask),
-                                                               max_prefetch=5)
+                                                               max_prefetch=30)
+            # This helps prevent a race condition that caused the second epoch to stall
+            print(f"Prefetching masks of size {batch_size}...")
+            self.mask_queues[batch_size].wait_until_full()
         self.learn.yb = (self.x,) # type: ignore
         mask = self.mask_queues[batch_size].next()
         self.learn.xb = (self.x * mask,) # type: ignore
