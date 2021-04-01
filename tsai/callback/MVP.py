@@ -161,6 +161,25 @@ def mask_generator(x, r, lm, stateful, sync, subsequence_mask, variable_mask, fu
                           future_mask=future_mask,
                           custom_mask=custom_mask)
 
+import weightwatcher as ww
+import logging
+import wandb
+
+# TODO: Make this its own callback
+def weight_watcher_analyze(model, step:int, file_path:Optional[Path]=None):
+    logger = logging.getLogger('weightwatcher')
+    logger.setLevel(logging.WARNING)
+    watcher = ww.WeightWatcher(model=model)
+    # TODO: this will overwrite the same file on each epoch
+    # FIXME: https://github.com/CalculatedContent/WeightWatcher/issues/52
+    details = watcher.analyze(plot=False, savefig=True)
+    if file_path is not None:
+        details.to_csv(file_path)
+    # TODO: Log these to wandb
+    summary = watcher.get_summary(details)
+    wandb.log(summary, step=step)
+    print(summary)
+
 class MVP(Callback):
     order = 60
 
@@ -263,6 +282,10 @@ class MVP(Callback):
         self.mask = mask
 
     def after_epoch(self):
+        if self.rank == 0 or self.rank is None: # Only need to execute once, not on every GPU
+            weight_watcher_analyze(self.learn.model,
+                                   step=self.epoch,
+                                   file_path=Path(f"self.PATH_weightwatcher_{self.epoch}.csv"))
         val = self.learn.recorder.values[-1][-1]
         if self.save_best:
             if np.less(val, self.best):
