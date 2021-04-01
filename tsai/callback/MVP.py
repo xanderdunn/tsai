@@ -245,7 +245,7 @@ class MVP(Callback):
                                                                               self.variable_mask,
                                                                               self.future_mask,
                                                                               self.custom_mask),
-                                                               max_prefetch=30)
+                                                               max_prefetch=15)
             # This helps prevent a race condition that caused the second epoch to stall
             print(f"Prefetching masks of size {batch_size}...")
             self.mask_queues[batch_size].wait_until_full()
