@@ -222,16 +222,22 @@ class MVP(Callback):
         self.learn.metrics = L([])
 
         # change head with conv layer (equivalent to linear layer applied to dim=1)
-        if self.rank is not None:
-            model = self.learn.model._modules["module"]
-        else:
-            model = self.learn.model
+        model = self.get_model()
         assert hasattr(model, "head"), "model must have a head attribute to be trained with MVP"
         if not hasattr(model, "head_initialized") or not model.head_initialized:
             print("Initializing the MVP model head...")
             model.head = nn.Sequential(nn.Dropout(self.dropout),
                                        nn.Conv1d(model.head_nf, self.learn.dls.vars, 1)).to(self.learn.dls.device)
             model.head_initialized = True
+
+    def get_model(self):
+        if hasattr(self.learn.model, "head"):
+            model = self.learn.model
+        elif hasattr(self.learn.model._modules["module"], "head"):
+            model = self.learn.model._modules["module"]
+        else:
+            assert False, "Couldn't find model"
+        return model
 
     def before_batch(self):
         batch_size = self.x.shape[0]
@@ -270,7 +276,7 @@ class MVP(Callback):
                     print(f"Saving checkpoint to {checkpoint_path}...")
                     dict_to_save = {"val_loss": val,
                                     "epoch": self.epoch,
-                                    "model_state_dict": self.learn.model.state_dict(),
+                                    "model_state_dict": self.get_model().state_dict(),
                                     "optimizer_state_dict": self.learn.opt.state_dict()}
                     torch.save(dict_to_save, checkpoint_path)
                     pv(f"best epoch: {self.best_epoch:3}  val_loss: {self.best:8.6f} - {self.path_text}", self.verbose or (self.epoch == self.n_epoch - 1))
