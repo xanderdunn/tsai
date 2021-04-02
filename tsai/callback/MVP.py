@@ -197,10 +197,6 @@ class MVP(Callback):
         self.PATH = Path(f'{target_dir}/{self.fname}')
         if not os.path.exists(self.PATH.parent):
             os.makedirs(self.PATH.parent)
-        if save_model:
-            self.path_text = f"pretrained model_path='{self.PATH}_model.pth'; weights_path='{self.PATH}.pth'"
-        else:
-            self.path_text = f"pretrained weights_path='{self.PATH}.pth'"
         self.mask_queues: Dict[Int, BackgroundGenerator] = {}
         self.rank: Optional[int] = rank
 
@@ -268,9 +264,6 @@ class MVP(Callback):
             if np.less(val, self.best):
                 self.best = val
                 self.best_epoch = self.epoch
-                if self.save_model:
-                    if self.rank == 0 or self.rank is None:
-                        torch.save(self.learn.model, f'{self.PATH}_model_{self.epoch}.pth')
                 if self.rank == 0 or self.rank is None:
                     checkpoint_path = f'{self.PATH}_{self.epoch}.tar'
                     print(f"Saving checkpoint to {checkpoint_path}...")
@@ -279,10 +272,9 @@ class MVP(Callback):
                                     "model_state_dict": self.get_model().state_dict(),
                                     "optimizer_state_dict": self.learn.opt.state_dict()}
                     torch.save(dict_to_save, checkpoint_path)
-                    pv(f"best epoch: {self.best_epoch:3}  val_loss: {self.best:8.6f} - {self.path_text}", self.verbose or (self.epoch == self.n_epoch - 1))
             elif self.epoch == self.n_epoch - 1:
                 if self.rank == 0 or self.rank is None:
-                    print(f"\nepochs: {self.n_epoch} best epoch: {self.best_epoch:3}  val_loss: {self.best:8.6f} - {self.path_text}\n")
+                    print(f"\nepochs: {self.n_epoch} best epoch: {self.best_epoch:3}  val_loss: {self.best:8.6f}")
 
     def after_fit(self):
         self.run = True
