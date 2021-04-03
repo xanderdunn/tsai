@@ -373,7 +373,7 @@ class TSTPlus(nn.Sequential):
 @delegates(TSTPlus.__init__)
 class MultiTSTPlus(nn.Sequential):
     _arch = TSTPlus
-    def __init__(self, feat_list, c_out, seq_len, max_seq_len:Optional[int]=512, custom_head=None, **kwargs):
+    def __init__(self, feat_list, c_out, seq_len, max_seq_len:Optional[int]=None, custom_head=None, **kwargs):
         r"""
         MultiTST is a class that allows you to create a model with multiple branches of TST.
 
