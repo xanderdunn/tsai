@@ -4,14 +4,26 @@ __all__ = ['create_subsequence_mask', 'create_variable_mask', 'create_future_mas
            'TSBERT_Loss', 'MVP', 'TSBERT']
 
 # Cell
+import torch
+from torch import distributions
 from fastai.callback.all import *
 from ..imports import *
 from ..utils import *
 from ..models.utils import *
 from ..models.layers import *
 
-# Cell
-from torch.distributions.beta import Beta
+use_cuda = torch.cuda.is_available()
+FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
+Tensor = FloatTensor
+
+def create_subsequence_mask_torch(o, r=.15):
+    if o.ndim == 2: o = o[None]
+    n_masks, mask_dims, mask_len = o.shape
+    probs = Tensor([1 - r]).repeat((n_masks, mask_dims, mask_len))
+    distribution = distributions.binomial.Binomial(1, probs)
+    values = distribution.sample()
+    return values
 
 # Cell
 def create_subsequence_mask(o, r=.15, lm=3, stateful=True, sync=False):
@@ -97,7 +109,8 @@ def create_mask(o,
     elif future_mask:
         return create_future_mask(o, r=r)
     elif subsequence_mask:
-        return create_subsequence_mask(o, r=r, lm=lm, stateful=stateful, sync=sync)
+        # return create_subsequence_mask(o, r=r, lm=lm, stateful=stateful, sync=sync)
+        return create_subsequence_mask_torch(o, r=r)
     elif variable_mask:
         return create_variable_mask(o, r=r)
     else:
@@ -116,35 +129,6 @@ TSBERT_Loss = MVP_Loss
 
 # Cell
 import matplotlib.colors as mcolors
-
-from threading import Thread
-from queue import Queue
-
-# Alternative to using my own code:
-# from prefetch_generator import BackgroundGenerator
-class BackgroundGenerator(Thread):
-    def __init__(self, generator, max_prefetch:int=1):
-        threading.Thread.__init__(self)
-        self.max_prefetch = max_prefetch
-        self.queue = Queue(max_prefetch)
-        self.generator = generator
-        self.daemon = True
-        self.start()
-
-    def run(self):
-        for item in self.generator:
-            self.queue.put(item)
-        self.queue.put(None)
-
-    def next(self):
-        next_item = self.queue.get()
-        if next_item is None:
-            raise StopIteration
-        return next_item
-
-    def wait_until_full(self):
-        while self.queue.qsize() < self.max_prefetch:
-            time.sleep(1)
 
 from typing import Dict
 
@@ -197,7 +181,6 @@ class MVP(Callback):
         self.PATH = Path(f'{target_dir}/{self.fname}')
         if not os.path.exists(self.PATH.parent):
             os.makedirs(self.PATH.parent)
-        self.mask_queues: Dict[Int, BackgroundGenerator] = {}
         self.rank: Optional[int] = rank
 
     def before_fit(self):
@@ -236,23 +219,16 @@ class MVP(Callback):
         return model
 
     def before_batch(self):
-        batch_size = self.x.shape[0]
-        if not batch_size in self.mask_queues:
-            self.mask_queues[batch_size] = BackgroundGenerator(mask_generator(self.x,
-                                                                              self.r,
-                                                                              self.lm,
-                                                                              self.stateful,
-                                                                              self.sync,
-                                                                              self.subsequence_mask,
-                                                                              self.variable_mask,
-                                                                              self.future_mask,
-                                                                              self.custom_mask),
-                                                               max_prefetch=15)
-            # This helps prevent a race condition that caused the second epoch to stall
-            print(f"Prefetching masks of size {batch_size}...")
-            self.mask_queues[batch_size].wait_until_full()
         self.learn.yb = (self.x,) # type: ignore
-        mask = self.mask_queues[batch_size].next()
+        mask = create_mask(self.x,
+                           self.r,
+                           self.lm,
+                           self.stateful,
+                           self.sync,
+                           self.subsequence_mask,
+                           self.variable_mask,
+                           self.future_mask,
+                           self.custom_mask)
         self.learn.xb = (self.x * mask,) # type: ignore
         # boolean mask
         self.learn.loss_func.mask = (mask == 0) # type: ignore
