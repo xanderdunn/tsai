@@ -316,7 +316,7 @@ class TSTPlus(nn.Sequential):
             key_padding_mask: a boolean padding mask will be applied to attention if True to those steps in a sample where all features are nan.
             attn_mask: a boolean mask will be applied to attention if a tensor of shape [min(seq_len, max_seq_len) x min(seq_len, max_seq_len)] if provided.
             res_attention: if True Residual MultiHeadAttention is applied.
-            num_layers: number of layers (or blocks) in the encoder. Default: 3 (range(1-4))
+            n_layers: number of layers (or blocks) in the encoder. Default: 3 (range(1-4))
             pe: type of positional encoder.
                 Available types (for experimenting): None, 'exp1d', 'lin1d', 'exp2d', 'lin2d', 'sincos', 'gauss' or 'normal',
                 'uniform', 'zero', 'zeros' (default, as in the paper).
