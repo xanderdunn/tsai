@@ -346,6 +346,8 @@ class TSTPlus(nn.Sequential):
         if custom_head: head = custom_head(self.head_nf, c_out, self.seq_len) # custom head passed as a partial func with all its kwargs
         else: head = self.create_head(self.head_nf, c_out, self.seq_len, flatten=flatten, concat_pool=concat_pool,
                                            fc_dropout=fc_dropout, bn=bn, y_range=y_range)
+        self.hyper_parameters_dict = locals()
+        print(f"num blocks: {n_layers}, num heads: {n_heads}, dim model: {d_model}, dim feedforward: {d_ff}")
         super().__init__(OrderedDict([('backbone', backbone), ('head', head)]))
 
 
