@@ -82,7 +82,11 @@ def ts_splitter(m):
     return L(m.backbone, m.head).map(params)
 
 
-def transfer_weights(model, weights_path:Path, device:torch.device=None, exclude_head:bool=True):
+def transfer_weights(model,
+                     weights_path: Path,
+                     device: torch.device = None,
+                     exclude_head: bool = True,
+                     fail_on_unmatched: bool = True):
     """Utility function that allows to easily transfer weights between models.
     Taken from the great self-supervised repository created by Kerem Turgutlu.
     https://github.com/KeremTurgutlu/self_supervised/blob/d87ebd9b4961c7da0efd6073c42782bbc61aaa2e/self_supervised/utils.py"""
@@ -106,6 +110,8 @@ def transfer_weights(model, weights_path:Path, device:torch.device=None, exclude
     else:
         if len(unmatched_layers) > 0:
             print(f'check unmatched_layers: {unmatched_layers}')
+            if fail_on_unmatched:
+                assert False, "Encountered unmatched layers"
         else:
             print(f"weights from {weights_path} successfully transferred!\n")
 
