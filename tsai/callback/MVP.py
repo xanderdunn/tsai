@@ -144,6 +144,7 @@ class MVP(Callback):
             custom_mask: allows to pass any type of mask with input tensor and output tensor.
             dropout: dropout applied to the head of the model during pretraining.
             crit: loss function that will be used. If None MSELossFlat().
+                          You can set it to False when continuing training from a checkpoint.
             target_dir : directory where trained model will be stored.
             fname : file name that will be used to save the pretrained model.
             save_best: saves best model weights
@@ -164,10 +165,8 @@ class MVP(Callback):
         self.mask_distributions:Dict[int, distributions.Distribution] = {}
 
     def before_fit(self):
-        self.run = not hasattr(self, "lr_finder") and not hasattr(
-            self, "gather_preds")
-        if not(self.run):
-            return
+        self.run = not hasattr(self, "lr_finder") and not hasattr(self, "gather_preds")
+        if not(self.run): return
 
         # prepare to save best model
         self.best = float('inf')
