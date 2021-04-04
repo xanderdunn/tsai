@@ -12,18 +12,10 @@ from ..utils import *
 from ..models.utils import *
 from ..models.layers import *
 
-use_cuda = torch.cuda.is_available()
-FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
-LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
+use_cuda = torch.cuda.is_available() # type: ignore
+FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor # type: ignore
+LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor # type: ignore
 Tensor = FloatTensor
-
-def create_subsequence_mask_torch(o, r=.15):
-    if o.ndim == 2: o = o[None]
-    n_masks, mask_dims, mask_len = o.shape
-    probs = Tensor([1 - r]).repeat((n_masks, mask_dims, mask_len))
-    distribution = distributions.binomial.Binomial(1, probs)
-    values = distribution.sample()
-    return values
 
 # Cell
 def create_subsequence_mask(o, r=.15, lm=3, stateful=True, sync=False):
@@ -132,19 +124,6 @@ import matplotlib.colors as mcolors
 
 from typing import Dict
 
-def mask_generator(x, r, lm, stateful, sync, subsequence_mask, variable_mask, future_mask, custom_mask):
-    # Prefetch masks in the background
-    while True:
-        yield create_mask(x,
-                          r=r,
-                          lm=lm,
-                          stateful=stateful,
-                          sync=sync,
-                          subsequence_mask=subsequence_mask,
-                          variable_mask=variable_mask,
-                          future_mask=future_mask,
-                          custom_mask=custom_mask)
-
 class MVP(Callback):
     order = 60
 
@@ -182,6 +161,7 @@ class MVP(Callback):
         if not os.path.exists(self.PATH.parent):
             os.makedirs(self.PATH.parent)
         self.rank: Optional[int] = rank
+        self.mask_distributions:Dict[int, distributions.Distribution] = {}
 
     def before_fit(self):
         self.run = not hasattr(self, "lr_finder") and not hasattr(
@@ -220,15 +200,11 @@ class MVP(Callback):
 
     def before_batch(self):
         self.learn.yb = (self.x,) # type: ignore
-        mask = create_mask(self.x,
-                           self.r,
-                           self.lm,
-                           self.stateful,
-                           self.sync,
-                           self.subsequence_mask,
-                           self.variable_mask,
-                           self.future_mask,
-                           self.custom_mask)
+        batch_size = self.x.shape[0]
+        if not batch_size in self.mask_distributions:
+            probs = Tensor([1 - self.r]).repeat((self.x.shape[0], self.x.shape[1], self.x.shape[2]))
+            self.mask_distributions[batch_size] = distributions.binomial.Binomial(1, probs)
+        mask = self.mask_distributions[batch_size].sample()
         self.learn.xb = (self.x * mask,) # type: ignore
         # boolean mask
         self.learn.loss_func.mask = (mask == 0) # type: ignore
