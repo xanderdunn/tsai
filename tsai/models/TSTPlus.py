@@ -293,7 +293,7 @@ class _TSTBackbone(Module):
 
 
 class TSTPlus(nn.Sequential):
-    def __init__(self, c_in:int, c_out:int, seq_len:int, max_seq_len:Optional[int]=512,
+    def __init__(self, c_in:int, c_out:int, seq_len:int, max_seq_len:Optional[int]=None,
                  n_layers:int=3, d_model:int=128, n_heads:int=16, d_k:Optional[int]=None, d_v:Optional[int]=None,
                  d_ff:int=256, res_dropout:float=0.1, act:str="gelu", key_padding_mask:bool=True, attn_mask:Optional[Tensor]=None,
                  res_attention:bool=False, pe:str='zeros', learn_pe:bool=True, flatten:bool=True, fc_dropout:float=0.,
