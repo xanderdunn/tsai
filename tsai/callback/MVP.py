@@ -17,14 +17,16 @@ FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor # type: 
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor # type: ignore
 Tensor = FloatTensor
 
+import random
+
 # Cell
 from torch.distributions.geometric import Geometric
 
-def create_subsequence_mask(o, r=.15, lm=3, stateful=True, sync=False):
+def create_subsequence_mask(o, r=.15, lm=3, stateful=True, sync:bool=False, randomize_sync:bool=False):
     device = o.device
     if o.ndim == 2: o = o[None]
     n_masks, mask_dims, mask_len = o.shape
-    if sync == 'random': sync = random.random() > .5
+    if randomize_sync: sync = random.random() > .5
     dims = 1 if sync else mask_dims
     if stateful:
         numels = n_masks * dims * mask_len
@@ -42,10 +44,10 @@ def create_subsequence_mask(o, r=.15, lm=3, stateful=True, sync=False):
         dist_len = torch.argmax(((dist_a + dist_b).cumsum(0) >= numels).float()) + 1
         if dist_len%2: dist_len += 1
         repeats = torch.cat((dist_a[:dist_len], dist_b[:dist_len]), -1).flatten()
-        zot = zot.repeat(dist_len)
+        zot = zot.repeat(dist_len) # type: ignore
         mask = torch.repeat_interleave(zot, repeats, dim=0)[:numels].reshape(n_masks, dims, mask_len)
     else:
-        mask = torch.distributions.binomial.Binomial(1, torch.tensor(1-r, device=device)).sample((n_masks, dims, mask_len))
+        mask = torch.distributions.binomial.Binomial(1, torch.tensor(1-r, device=device)).sample((n_masks, dims, mask_len)) # type: ignore
     if sync: mask = mask.repeat(1, mask_dims, 1)
     return mask
 
@@ -101,8 +103,7 @@ def create_mask(o,
     elif future_mask:
         return create_future_mask(o, r=r)
     elif subsequence_mask:
-        # return create_subsequence_mask(o, r=r, lm=lm, stateful=stateful, sync=sync)
-        return create_subsequence_mask_torch(o, r=r)
+        return create_subsequence_mask(o, r=r, lm=lm, stateful=stateful, sync=sync)
     elif variable_mask:
         return create_variable_mask(o, r=r)
     else:
@@ -203,11 +204,15 @@ class MVP(Callback):
 
     def before_batch(self):
         self.learn.yb = (self.x,) # type: ignore
-        batch_size = self.x.shape[0]
-        if not batch_size in self.mask_distributions:
-            probs = Tensor([1 - self.r]).repeat((self.x.shape[0], self.x.shape[1], self.x.shape[2]))
-            self.mask_distributions[batch_size] = distributions.binomial.Binomial(1, probs)
-        mask = self.mask_distributions[batch_size].sample()
+        mask = create_mask(self.x,
+                           r=self.r,
+                           lm=self.lm,
+                           stateful=self.stateful,
+                           sync=self.sync,
+                           subsequence_mask=self.subsequence_mask,
+                           variable_mask=self.variable_mask,
+                           future_mask=self.future_mask,
+                           custom_mask=self.custom_mask)
         self.learn.xb = (self.x * mask,) # type: ignore
         # boolean mask
         self.learn.loss_func.mask = (mask == 0) # type: ignore
